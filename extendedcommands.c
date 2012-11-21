@@ -45,7 +45,7 @@
 
 int signature_check_enabled = 1;
 int script_assert_enabled = 1;
-static const char *SDCARD_UPDATE_FILE = "/emmc/update.zip";
+static const char *SDCARD_UPDATE_FILE = "/sdcard/update.zip";
 
 int
 get_filtered_menu_selection(char** headers, char** items, int menu_only, int initial_selection, int items_count) {
@@ -113,7 +113,7 @@ int install_zip(const char* packagefilepath)
 #define ITEM_CHOOSE_ZIP       0
 #define ITEM_APPLY_SDCARD     1
 #define ITEM_SIG_CHECK        2
-#define ITEM_CHOOSE_ZIP_INT   3
+#define ITEM_CHOOSE_ZIP_EXT   3
 
 void show_install_update_menu()
 {
@@ -122,8 +122,8 @@ void show_install_update_menu()
                                 NULL
     };
     
-    char* install_menu_items[] = {  "choose zip from external sdcard",
-                                    "apply /emmc/update.zip",
+    char* install_menu_items[] = {  "choose zip from sdcard",
+                                    "apply /sdcard/update.zip",
                                     "toggle signature verification",
                                     NULL,
                                     NULL };
@@ -148,14 +148,14 @@ void show_install_update_menu()
                 break;
             case ITEM_APPLY_SDCARD:
             {
-                if (confirm_selection("Confirm install?", "Yes - Install /emmc/update.zip"))
+                if (confirm_selection("Confirm install?", "Yes - Install /sdcard/update.zip"))
                     install_zip(SDCARD_UPDATE_FILE);
                 break;
             }
             case ITEM_CHOOSE_ZIP:
                 show_choose_zip_menu("/sdcard/");
                 break;
-            case ITEM_CHOOSE_ZIP_INT:
+            case ITEM_CHOOSE_ZIP_EXT:
                 if (other_sd != NULL)
                     show_choose_zip_menu(other_sd);
                 break;
@@ -591,14 +591,14 @@ void show_mount_usb_storage_menu()
 
 int confirm_selection(const char* title, const char* confirm)
 {
-    ensure_path_mounted("/emmc");
+    ensure_path_mounted("/sdcard");
     struct stat info;
-    if (0 == stat("/emmc/clockworkmod/.no_confirm", &info))
+    if (0 == stat("/sdcard/clockworkmod/.no_confirm", &info))
         return 1;
 
-    ensure_path_mounted("/emmc");
+    ensure_path_mounted("/sdcard");
     char* confirm_headers[]  = {  title, "  Confirm?.", "", NULL };
-    if (0 == stat("/emmc/clockworkmod/.one_confirm", &info)) {
+    if (0 == stat("/sdcard/clockworkmod/.one_confirm", &info)) {
         char* items[] = { "No",
                         confirm, //" Yes -- wipe partition",   // [1]
                         NULL };
@@ -725,7 +725,7 @@ int format_unknown_device(const char *device, const char* path, const char *fs_t
         Volume *vol = volume_for_path("/sd-ext");
         if (vol == NULL || 0 != stat(vol->device, &st))
         {
-            ui_print("No app2sd partition found. Skipping format of /sd-ext.\n");
+//            ui_print("No app2sd partition found. Skipping format of /sd-ext.\n");
             return 0;
         }
     }
@@ -1020,8 +1020,8 @@ void show_nandroid_advanced_restore_menu(const char* path)
 }
 
 static void run_dedupe_gc(const char* other_sd) {
-    ensure_path_mounted("/sdcard");
-    nandroid_dedupe_gc("/sdcard/clockworkmod/blobs");
+    ensure_path_mounted("/external_sd");
+    nandroid_dedupe_gc("/external_sd/clockworkmod/blobs");
     if (other_sd) {
         ensure_path_mounted(other_sd);
         char tmp[PATH_MAX];
@@ -1061,10 +1061,10 @@ void show_nandroid_menu()
                                 NULL
     };
 
-    char* list[] = { "backup to external",
-                            "restore from external",
-                            "delete from external",
-                            "advanced restore from external",
+    char* list[] = { "backup",
+                            "restore",
+                            "delete",
+                            "advanced restore",
                             "free unused backup data",
                             "choose backup format",
                             NULL,
@@ -1156,7 +1156,7 @@ void show_nandroid_menu()
                             char tmp[PATH_MAX];
                             strftime(tmp, sizeof(tmp), "clockworkmod/backup/%F.%H.%M.%S", timeptr);
                             // this sprintf results in:
-                            // /emmc/clockworkmod/backup/%F.%H.%M.%S (time values are populated too)
+                            // /sdcard/clockworkmod/backup/%F.%H.%M.%S (time values are populated too)
                             sprintf(backup_path, "%s/%s", other_sd, tmp);
                         }
                         else {
@@ -1327,7 +1327,7 @@ void show_advanced_menu()
             case 6:
                 ensure_path_mounted("/system");
                 ensure_path_mounted("/data");
-                ensure_path_mounted("/emmc");
+                ensure_path_mounted("/sdcard");
                 ui_print("Fixing permissions...\n");
                 __system("fix_permissions");
                 ui_print("Done!\n");
@@ -1378,9 +1378,9 @@ void create_fstab()
     write_fstab_root("/cache", file);
     write_fstab_root("/data", file);
     write_fstab_root("/datadata", file);
-    write_fstab_root("/emmc", file);
-    write_fstab_root("/system", file);
     write_fstab_root("/sdcard", file);
+    write_fstab_root("/system", file);
+    write_fstab_root("/external_sd", file);
     write_fstab_root("/sd-ext", file);
     fclose(file);
     LOGI("Completed outputting fstab.\n");
@@ -1440,7 +1440,7 @@ void process_volumes() {
     struct timeval tp;
     gettimeofday(&tp, NULL);
     sprintf(backup_name, "before-ext4-convert-%d", tp.tv_sec);
-    sprintf(backup_path, "/sdcard/clockworkmod/backup/%s", backup_name);
+    sprintf(backup_path, "/external_sd/clockworkmod/backup/%s", backup_name);
 
     ui_set_show_text(1);
     ui_print("Filesystems need to be converted to ext4.\n");
@@ -1458,11 +1458,11 @@ void handle_failure(int ret)
 {
     if (ret == 0)
         return;
-    if (0 != ensure_path_mounted("/emmc"))
+    if (0 != ensure_path_mounted("/sdcard"))
         return;
-    mkdir("/emmc/clockworkmod", S_IRWXU | S_IRWXG | S_IRWXO);
-    __system("cp /tmp/recovery.log /emmc/clockworkmod/recovery.log");
-    ui_print("/tmp/recovery.log was copied to /emmc/clockworkmod/recovery.log. Please open ROM Manager to report the issue.\n");
+    mkdir("/sdcard/clockworkmod", S_IRWXU | S_IRWXG | S_IRWXO);
+    __system("cp /tmp/recovery.log /sdcard/clockworkmod/recovery.log");
+    ui_print("/tmp/recovery.log was copied to /sdcard/clockworkmod/recovery.log. Please open ROM Manager to report the issue.\n");
 }
 
 int is_path_mounted(const char* path) {

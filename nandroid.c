@@ -47,11 +47,11 @@ void nandroid_generate_timestamp_path(const char* backup_path)
     {
         struct timeval tp;
         gettimeofday(&tp, NULL);
-        sprintf(backup_path, "/sdcard/clockworkmod/backup/%d", tp.tv_sec);
+        sprintf(backup_path, "/external_sd/clockworkmod/backup/%d", tp.tv_sec);
     }
     else
     {
-        strftime(backup_path, PATH_MAX, "/sdcard/clockworkmod/backup/%F.%H.%M.%S", tmp);
+        strftime(backup_path, PATH_MAX, "/external_sd/clockworkmod/backup/%F.%H.%M.%S", tmp);
     }
 }
 
@@ -204,7 +204,7 @@ static void refresh_default_backup_handler() {
         strcpy(fmt, forced_backup_format);
     }
     else {
-        ensure_path_mounted("/emmc");
+        ensure_path_mounted("/sdcard");
         FILE* f = fopen(NANDROID_BACKUP_FORMAT_FILE, "r");
         if (NULL == f)
             return;
@@ -251,9 +251,9 @@ int nandroid_backup_partition_extended(const char* backup_path, const char* moun
     char name[PATH_MAX];
     strcpy(name, basename(mount_point));
 
-    ensure_path_mounted("/emmc");
+    ensure_path_mounted("/sdcard");
     struct stat file_info;
-    int callback = stat("/emmc/clockworkmod/.hidenandroidprogress", &file_info) != 0;
+    int callback = stat("/sdcard/clockworkmod/.hidenandroidprogress", &file_info) != 0;
 
     ui_print("Backing up %s...\n", name);
     if (0 != (ret = ensure_path_mounted(mount_point) != 0)) {
@@ -375,8 +375,19 @@ int nandroid_backup(const char* backup_path)
             return ret;
     }
 
-    ensure_path_mounted("/emmc");
-    if( access( "/emmc/clockworkmod/.is_as_external", F_OK ) != -1) {
+    ensure_path_mounted("/sdcard");
+    if( access( "/sdcard/clockworkmod/.is_as_external", F_OK ) != -1) {
+        ensure_path_mounted("/external_sd");
+        if (0 != stat("/external_sd/.android_secure", &s))
+        {
+            ui_print("No /external_sd/.android_secure found...\n");
+        }
+        else
+        {
+            if (0 != (ret = nandroid_backup_partition_extended(backup_path, "/external_sd/.android_secure", 0)))
+                return ret;
+        }
+    } else {
         ensure_path_mounted("/sdcard");
         if (0 != stat("/sdcard/.android_secure", &s))
         {
@@ -385,17 +396,6 @@ int nandroid_backup(const char* backup_path)
         else
         {
             if (0 != (ret = nandroid_backup_partition_extended(backup_path, "/sdcard/.android_secure", 0)))
-                return ret;
-        }
-    } else {
-        ensure_path_mounted("/emmc");
-        if (0 != stat("/emmc/.android_secure", &s))
-        {
-            ui_print("No /emmc/.android_secure found...\n");
-        }
-        else
-        {
-            if (0 != (ret = nandroid_backup_partition_extended(backup_path, "/emmc/.android_secure", 0)))
                 return ret;
         }
     }
@@ -423,7 +423,7 @@ int nandroid_backup(const char* backup_path)
         return ret;
     }
     
-    sprintf(tmp, "chmod -R 777 %s ; chmod -R u+r,u+w,g+r,g+w,o+r,o+w /sdcard/clockworkmod ; chmod u+x,g+x,o+x /sdcard/clockworkmod/backup ; chmod u+x,g+x,o+x /sdcard/clockworkmod/blobs", backup_path);
+    sprintf(tmp, "chmod -R 777 %s ; chmod -R u+r,u+w,g+r,g+w,o+r,o+w /external_sd/clockworkmod ; chmod u+x,g+x,o+x /sdcard/clockworkmod/backup ; chmod u+x,g+x,o+x /sdcard/clockworkmod/blobs", backup_path);
     __system(tmp);
     sync();
     ui_set_background(BACKGROUND_ICON_CLOCKWORK);
@@ -587,7 +587,7 @@ int nandroid_restore_partition_extended(const char* backup_path, const char* mou
         // reformat the /system or /data partitions, and not boot due to
         // a locked bootloader.
         // Other devices, like the Galaxy Nexus, XOOM, and Galaxy Tab 10.1
-        // have a /sdcard symlinked to /data/media.
+        // have a /external_sd symlinked to /data/media.
         // Or of volume does not exist (.android_secure), just rm -rf.
         if (vol == NULL || 0 == strcmp(vol->fs_type, "auto"))
             backup_filesystem = NULL;
@@ -597,8 +597,8 @@ int nandroid_restore_partition_extended(const char* backup_path, const char* mou
 
     ensure_directory(mount_point);
 
-    ensure_path_mounted("/emmc");
-    int callback = stat("/emmc/clockworkmod/.hidenandroidprogress", &file_info) != 0;
+    ensure_path_mounted("/sdcard");
+    int callback = stat("/sdcard/clockworkmod/.hidenandroidprogress", &file_info) != 0;
 
     ui_print("Restoring %s...\n", name);
     if (backup_filesystem == NULL) {
@@ -725,14 +725,14 @@ int nandroid_restore(const char* backup_path, int restore_boot, int restore_syst
             return ret;
     }
 
-    ensure_path_mounted("/emmc");
-    if( access( "/emmc/clockworkmod/.is_as_external", F_OK ) != -1) {
-        if (restore_data && 0 != (ret = nandroid_restore_partition_extended(backup_path, "/sdcard/.android_secure", 0))) {
+    ensure_path_mounted("/sdcard");
+    if( access( "/sdcard/clockworkmod/.is_as_external", F_OK ) != -1) {
+        if (restore_data && 0 != (ret = nandroid_restore_partition_extended(backup_path, "/external_sd/.android_secure", 0))) {
             return ret;
         }
     }
     else {
-        if (restore_data && 0 != (ret = nandroid_restore_partition_extended(backup_path, "/emmc/.android_secure", 0))) {
+        if (restore_data && 0 != (ret = nandroid_restore_partition_extended(backup_path, "/sdcard/.android_secure", 0))) {
             return ret;
         }
     }

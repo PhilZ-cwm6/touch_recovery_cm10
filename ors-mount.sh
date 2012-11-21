@@ -2,7 +2,7 @@
 
 MOUNT=`cat /etc/fstab | grep 28 | awk '{print $2}'`
 
-if [ $MOUNT="/emmc" ]
+if [ $MOUNT="/sdcard" ]
 then
-sed -i 's/\/sdcard/\/emmc/g' /cache/recovery/openrecoveryscript
+sed -i 's/\/emmc/\/sdcard/g' /cache/recovery/openrecoveryscript
 fi

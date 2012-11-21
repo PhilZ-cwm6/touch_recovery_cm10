@@ -58,19 +58,19 @@ void show_darkside_menu() {
     int chosen_item = get_menu_selection(headers, list, 0, 0);
     switch (chosen_item) {
         case 0:
-                ensure_path_mounted("/emmc");
-                if( access( "/emmc/clockworkmod/.darkside/cachewipe.zip", F_OK ) != -1) {
-                install_zip("/emmc/clockworkmod/.darkside/cachewipe.zip");
+                ensure_path_mounted("/sdcard");
+                if( access( "/sdcard/clockworkmod/.darkside/cachewipe.zip", F_OK ) != -1) {
+                install_zip("/sdcard/clockworkmod/.darkside/cachewipe.zip");
                 } else {
-                ui_print("No darkside files found in /emmc/clockworkmod/.darkside");
+                ui_print("No darkside files found in /sdcard/clockworkmod/.darkside");
                 }
                 break;
         case 1:
-                ensure_path_mounted("/emmc");
-                if( access( "/emmc/clockworkmod/.darkside/superwipe.zip", F_OK ) != -1) {
-                install_zip("/emmc/clockworkmod/.darkside/superwipe.zip");
+                ensure_path_mounted("/sdcard");
+                if( access( "/sdcard/clockworkmod/.darkside/superwipe.zip", F_OK ) != -1) {
+                install_zip("/sdcard/clockworkmod/.darkside/superwipe.zip");
                 } else {
-                ui_print("No darkside files found in /emmc/clockworkmod/.darkside");
+                ui_print("No darkside files found in /sdcard/clockworkmod/.darkside");
                 }
                 break;
     }
@@ -92,33 +92,33 @@ void show_efs_menu() {
     int chosen_item = get_menu_selection(headers, list, 0, 0);
     switch (chosen_item) {
         case 0:
-                ensure_path_mounted("/emmc");
-                ensure_path_unmounted("/efs");
-                __system("backup-efs.sh /emmc");
-                ui_print("/emmc/clockworkmod/.efsbackup/efs.img created\n");
-                break;
-        case 1:
-                ensure_path_mounted("/emmc");
-                ensure_path_unmounted("/efs");
-                if( access("/emmc/clockworkmod/.efsbackup/efs.img", F_OK ) != -1 ) {
-                   __system("restore-efs.sh /emmc");
-                   ui_print("/emmc/clockworkmod/.efsbackup/efs.img restored to /efs");
-                } else {
-                   ui_print("No efs.img backup found.\n");
-                }
-                break;
-        case 2:
                 ensure_path_mounted("/sdcard");
                 ensure_path_unmounted("/efs");
                 __system("backup-efs.sh /sdcard");
                 ui_print("/sdcard/clockworkmod/.efsbackup/efs.img created\n");
                 break;
-        case 3:
+        case 1:
                 ensure_path_mounted("/sdcard");
                 ensure_path_unmounted("/efs");
                 if( access("/sdcard/clockworkmod/.efsbackup/efs.img", F_OK ) != -1 ) {
                    __system("restore-efs.sh /sdcard");
                    ui_print("/sdcard/clockworkmod/.efsbackup/efs.img restored to /efs");
+                } else {
+                   ui_print("No efs.img backup found.\n");
+                }
+                break;
+        case 2:
+                ensure_path_mounted("/external_sd");
+                ensure_path_unmounted("/efs");
+                __system("backup-efs.sh /external_sd");
+                ui_print("/external_sd/clockworkmod/.efsbackup/efs.img created\n");
+                break;
+        case 3:
+                ensure_path_mounted("/external_sd");
+                ensure_path_unmounted("/efs");
+                if( access("/external_sd/clockworkmod/.efsbackup/efs.img", F_OK ) != -1 ) {
+                   __system("restore-efs.sh /external_sd");
+                   ui_print("/external_sd/clockworkmod/.efsbackup/efs.img restored to /efs");
                 } else {
                    ui_print("No efs.img backup found.\n");
                 }
@@ -240,7 +240,7 @@ int run_custom_ors(const char* ors_script) {
 						remove_nl = 0;
 					strncpy(value2, tok, line_len - remove_nl);
 					ui_print("Backup folder set to '%s'\n", value2);
-					sprintf(backup_path, "/emmc/clockworkmod/backup/%s", value2);
+					sprintf(backup_path, "/sdcard/clockworkmod/backup/%s", value2);
 				} else {
 					time_t t = time(NULL);
 					struct tm *tmp = localtime(&t);
@@ -248,11 +248,11 @@ int run_custom_ors(const char* ors_script) {
 					{
 						struct timeval tp;
 						gettimeofday(&tp, NULL);
-						sprintf(backup_path, "/emmc/clockworkmod/backup/%d", tp.tv_sec);
+						sprintf(backup_path, "/sdcard/clockworkmod/backup/%d", tp.tv_sec);
 					}
 					else
 					{
-						strftime(backup_path, sizeof(backup_path), "/emmc/clockworkmod/backup/%F.%H.%M.%S", tmp);
+						strftime(backup_path, sizeof(backup_path), "/sdcard/clockworkmod/backup/%F.%H.%M.%S", tmp);
 					}
 				}
 
@@ -400,10 +400,10 @@ void show_bootanimation_menu() {
     int chosen_item = get_menu_selection(headers, list, 0, 0);
     switch (chosen_item) {
         case 0:
-                choose_bootanimation_menu("/emmc/");
+                choose_bootanimation_menu("/sdcard/");
                 break;
         case 1:
-                choose_bootanimation_menu("/sdcard/");
+                choose_bootanimation_menu("/external_sd/");
                 break;
     }
 }
@@ -462,41 +462,41 @@ void show_extras_menu()
 		show_bootanimation_menu();
 		break;
 	    case 1:
-		ensure_path_mounted("/emmc");
-                if( access("/emmc/clockworkmod/.one_confirm", F_OK ) != -1 ) {
-                   __system("rm -rf /emmc/clockworkmod/.one_confirm");
+		ensure_path_mounted("/sdcard");
+                if( access("/sdcard/clockworkmod/.one_confirm", F_OK ) != -1 ) {
+                   __system("rm -rf /sdcard/clockworkmod/.one_confirm");
                    ui_print("one confirm disabled\n");
                 } else {
-                   __system("touch /emmc/clockworkmod/.one_confirm");
+                   __system("touch /sdcard/clockworkmod/.one_confirm");
                    ui_print("one confirm enabled\n");
                 }
 		break;
 	    case 2:
-                ensure_path_mounted("/emmc");
-                if( access("/emmc/clockworkmod/.hidenandroidprogress", F_OK ) != -1 ) {
-                   __system("rm -rf /emmc/clockworkmod/.hidenandroidprogress");
+                ensure_path_mounted("/sdcard");
+                if( access("/sdcard/clockworkmod/.hidenandroidprogress", F_OK ) != -1 ) {
+                   __system("rm -rf /sdcard/clockworkmod/.hidenandroidprogress");
                    ui_print("nandroid progress will be shown\n");
                 } else {
-                   __system("touch /emmc/clockworkmod/.hidenandroidprogress");
+                   __system("touch /sdcard/clockworkmod/.hidenandroidprogress");
                    ui_print("nandroid progress will be hidden\n");
                 }
                 break;
 	    case 3:
-                ensure_path_mounted("/emmc");
-                if( access("/emmc/clockworkmod/.is_as_external", F_OK ) != -1 ) {
-                   __system("rm -rf /emmc/clockworkmod/.is_as_external");
+                ensure_path_mounted("/sdcard");
+                if( access("/sdcard/clockworkmod/.is_as_external", F_OK ) != -1 ) {
+                   __system("rm -rf /sdcard/clockworkmod/.is_as_external");
                    ui_print("android_secure will be set to internal\n");
                 } else {
-                   __system("touch /emmc/clockworkmod/.is_as_external");
+                   __system("touch /sdcard/clockworkmod/.is_as_external");
                    ui_print("android_secure will be set to external\n");
                 }
                 break;
 	    case 4:
-		ensure_path_mounted("/emmc");
-		if( access( "/emmc/clockworkmod/.aromafm/aromafm.zip", F_OK ) != -1) {
-                install_zip("/emmc/clockworkmod/.aromafm/aromafm.zip");
+		ensure_path_mounted("/sdcard");
+		if( access( "/sdcard/clockworkmod/.aromafm/aromafm.zip", F_OK ) != -1) {
+                install_zip("/sdcard/clockworkmod/.aromafm/aromafm.zip");
 		} else {
-                ui_print("No aroma files found in /emmc/clockworkmod/.aromafm");
+                ui_print("No aroma files found in /sdcard/clockworkmod/.aromafm");
 		}
 		break;
 	    case 5:
@@ -507,7 +507,7 @@ void show_extras_menu()
 		break;
 	    case 7:
 		ensure_path_mounted("/system");
-		ensure_path_mounted("/emmc");
+		ensure_path_mounted("/sdcard");
                 if (confirm_selection("Create a zip from system and boot?", "Yes - Create custom zip")) {
 		ui_print("Creating custom zip...\n");
 		ui_print("This may take a while. Be Patient.\n");
@@ -518,19 +518,19 @@ void show_extras_menu()
                     {
                         struct timeval tp;
                         gettimeofday(&tp, NULL);
-                        sprintf(custom_path, "/emmc/clockworkmod/zips/%d", tp.tv_sec);
+                        sprintf(custom_path, "/sdcard/clockworkmod/zips/%d", tp.tv_sec);
                     }
                     else
                     {
-                        strftime(custom_path, sizeof(custom_path), "/emmc/clockworkmod/zips/%F.%H.%M.%S", tmp);
+                        strftime(custom_path, sizeof(custom_path), "/sdcard/clockworkmod/zips/%F.%H.%M.%S", tmp);
                     }
                     create_customzip(custom_path);
-		ui_print("custom zip created in /emmc/clockworkmod/zips/\n");
+		ui_print("custom zip created in /sdcard/clockworkmod/zips/\n");
 	}
 		ensure_path_unmounted("/system");
 		break;
 	    case 8:
-		show_custom_ors_menu("/emmc");
+		show_custom_ors_menu("/sdcard");
 		break;
 	    case 9:
 		ui_print("ClockworkMod Recovery 6.0.1.9 Touch v14.3\n");

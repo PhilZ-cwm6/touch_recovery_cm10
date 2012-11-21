@@ -63,10 +63,10 @@ static const char *INTENT_FILE = "/cache/recovery/intent";
 static const char *LOG_FILE = "/cache/recovery/log";
 static const char *LAST_LOG_FILE = "/cache/recovery/last_log";
 static const char *CACHE_ROOT = "/cache";
-static const char *SDCARD_ROOT = "/sdcard";
+static const char *SDCARD_ROOT = "/external_sd";
 static int allow_display_toggle = 0;
 static int poweroff = 0;
-static const char *SDCARD_PACKAGE_FILE = "/sdcard/update.zip";
+static const char *SDCARD_PACKAGE_FILE = "/external_sd/update.zip";
 static const char *TEMPORARY_LOG_FILE = "/tmp/recovery.log";
 static const char *SIDELOAD_TEMP_DIR = "/tmp/sideload";
 
@@ -441,7 +441,7 @@ get_menu_selection(char** headers, char** items, int menu_only,
 
     // Some users with dead enter keys need a way to turn on power to select.
     // Jiggering across the wrapping menu is one "secret" way to enable it.
-    // We can't rely on /cache or /sdcard since they may not be available.
+    // We can't rely on /cache or /external_sd since they may not be available.
     int wrap_count = 0;
 
     while (chosen_item < 0 && chosen_item != GO_BACK) {
@@ -667,20 +667,20 @@ void wipe_data(int confirm) {
         erase_volume("/datadata");
     }
     erase_volume("/sd-ext");
-    ensure_path_mounted("/emmc");
     ensure_path_mounted("/sdcard");
-    if( access( "/emmc/clockworkmod/.is_as_external", F_OK ) != -1) {
-	erase_volume("/sdcard/.android_secure");
+    ensure_path_mounted("/external_sd");
+    if( access( "/sdcard/clockworkmod/.is_as_external", F_OK ) != -1) {
+	erase_volume("/external_sd/.android_secure");
     }
     else {
-	erase_volume("/emmc/.android_secure");
+	erase_volume("/sdcard/.android_secure");
     }
     ui_print("Data wipe complete.\n");
     ensure_path_mounted("/data");
-    ensure_path_mounted("/emmc");
     ensure_path_mounted("/sdcard");
+    ensure_path_mounted("/external_sd");
     struct stat st;
-    if (0 == lstat("/emmc/0", &st)) {
+    if (0 == lstat("/sdcard/0", &st)) {
         char* layout_version = "2";
         FILE* f = fopen("/data/.layout_version", "wb");
         if (NULL != f) {
@@ -691,7 +691,7 @@ void wipe_data(int confirm) {
             LOGI("error opening /data/.layout_version for write.\n");
         }
     }
-    else if (0 == lstat("/sdcard/0", &st)) {
+    else if (0 == lstat("/external_sd/0", &st)) {
         char* layout_version = "2";
         FILE* f = fopen("/data/.layout_version", "wb");
         if (NULL != f) {
@@ -703,7 +703,7 @@ void wipe_data(int confirm) {
         }
     }
     else {
-        LOGI("/emmc/0,/sdcard/0 not found. migration may occur in Android 4.2.\n");
+        LOGI("/sdcard/0,/external_sd/0 not found. migration may occur in Android 4.2.\n");
     }
     ensure_path_unmounted("/data");
 }
@@ -784,8 +784,8 @@ int run_script_file(void) {
 			if (strcmp(command, "install") == 0) {
 				// Install zip
 				ui_print("Installing zip file '%s'\n", value);
-				ensure_path_mounted("/emmc");
-                                ensure_path_mounted("/sdcard");
+				ensure_path_mounted("/sdcard");
+                                ensure_path_mounted("/external_sd");
 				ret_val = install_zip(value);
 				if (ret_val != INSTALL_SUCCESS) {
 					LOGE("Error installing zip file '%s'\n", value);
@@ -839,7 +839,7 @@ int run_script_file(void) {
 						remove_nl = 0;
 					strncpy(value2, tok, line_len - remove_nl);
 					ui_print("Backup folder set to '%s'\n", value2);
-					sprintf(backup_path, "/emmc/clockworkmod/backup/%s", value2);
+					sprintf(backup_path, "/sdcard/clockworkmod/backup/%s", value2);
 				} else {
 					time_t t = time(NULL);
 					struct tm *tmp = localtime(&t);
@@ -847,11 +847,11 @@ int run_script_file(void) {
 					{
 						struct timeval tp;
 						gettimeofday(&tp, NULL);
-						sprintf(backup_path, "/emmc/clockworkmod/backup/%d", tp.tv_sec);
+						sprintf(backup_path, "/sdcard/clockworkmod/backup/%d", tp.tv_sec);
 					}
 					else
 					{
-						strftime(backup_path, sizeof(backup_path), "/emmc/clockworkmod/backup/%F.%H.%M.%S", tmp);
+						strftime(backup_path, sizeof(backup_path), "/sdcard/clockworkmod/backup/%F.%H.%M.%S", tmp);
 					}
 				}
 
@@ -1192,7 +1192,7 @@ main(int argc, char **argv) {
         }
         if (0 == check_for_script_file()) {
 	    LOGI("Running openrecoveryscript....\n");
-	    ensure_path_mounted("/emmc");
+	    ensure_path_mounted("/sdcard");
             __system("ors-mount.sh");
 	    int ret;
             if (0 == (ret = run_script_file())) {
