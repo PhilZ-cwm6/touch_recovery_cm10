@@ -18,8 +18,8 @@ LOCAL_SRC_FILES := \
     edifyscripting.c \
     setprop.c \
     default_recovery_ui.c \
-    adb_install.c \
-    verifier.c
+    verifier.c \
+    kyle.c
 
 ADDITIONAL_RECOVERY_FILES := $(shell echo $$ADDITIONAL_RECOVERY_FILES)
 LOCAL_SRC_FILES += $(ADDITIONAL_RECOVERY_FILES)
@@ -32,9 +32,7 @@ ifdef I_AM_KOUSH
 RECOVERY_NAME := ClockworkMod Recovery
 LOCAL_CFLAGS += -DI_AM_KOUSH
 else
-ifndef RECOVERY_NAME
 RECOVERY_NAME := CWMR Touch
-endif
 endif
 
 RECOVERY_VERSION := $(RECOVERY_NAME) v6.0.1.9 _sk8erwitskil_
@@ -88,7 +86,7 @@ endif
 LOCAL_STATIC_LIBRARIES += libext4_utils libz
 LOCAL_STATIC_LIBRARIES += libminzip libunz libmincrypt
 
-LOCAL_STATIC_LIBRARIES += libminizip libminadbd libedify libbusybox libmkyaffs2image libunyaffs liberase_image libdump_image libflash_image
+LOCAL_STATIC_LIBRARIES += libminizip libedify libbusybox libmkyaffs2image libunyaffs liberase_image libdump_image libflash_image
 
 LOCAL_STATIC_LIBRARIES += libdedupe libcrypto_static libcrecovery libflashutils libmtdutils libmmcutils libbmlutils
 
@@ -146,6 +144,46 @@ LOCAL_SRC_FILES := killrecovery.sh
 include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)
+LOCAL_MODULE := backup-efs.sh
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_CLASS := RECOVERY_EXECUTABLES
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+LOCAL_SRC_FILES := backup-efs.sh
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := restore-efs.sh
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_CLASS := RECOVERY_EXECUTABLES
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+LOCAL_SRC_FILES := restore-efs.sh
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := create_update_zip.sh
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_CLASS := RECOVERY_EXECUTABLES
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+LOCAL_SRC_FILES := create_update_zip.sh
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := ors-mount.sh
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_CLASS := RECOVERY_EXECUTABLES
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+LOCAL_SRC_FILES := ors-mount.sh
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := change_ba.sh
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_CLASS := RECOVERY_EXECUTABLES
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+LOCAL_SRC_FILES := change_ba.sh
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := verifier_test.c verifier.c
 
@@ -166,7 +204,6 @@ include $(commands_recovery_local_path)/libcrecovery/Android.mk
 include $(commands_recovery_local_path)/minui/Android.mk
 include $(commands_recovery_local_path)/minelf/Android.mk
 include $(commands_recovery_local_path)/minzip/Android.mk
-include $(commands_recovery_local_path)/minadbd/Android.mk
 include $(commands_recovery_local_path)/mtdutils/Android.mk
 include $(commands_recovery_local_path)/mmcutils/Android.mk
 include $(commands_recovery_local_path)/tools/Android.mk

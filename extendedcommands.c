@@ -16,6 +16,7 @@
 #include <sys/limits.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 
 #include <signal.h>
 #include <sys/wait.h>
@@ -40,7 +41,7 @@
 #include "mtdutils/mtdutils.h"
 #include "bmlutils/bmlutils.h"
 #include "cutils/android_reboot.h"
-
+#include "kyle.h"
 
 int signature_check_enabled = 1;
 int script_assert_enabled = 1;
@@ -104,7 +105,7 @@ int install_zip(const char* packagefilepath)
         ui_print("Installation aborted.\n");
         return 1;
     }
-    ui_set_background(BACKGROUND_ICON_NONE);
+    ui_set_background(BACKGROUND_ICON_CLOCKWORK);
     ui_print("\nInstall from sdcard complete.\n");
     return 0;
 }
@@ -121,7 +122,7 @@ void show_install_update_menu()
                                 NULL
     };
     
-    char* install_menu_items[] = {  "choose zip from sdcard",
+    char* install_menu_items[] = {  "choose zip from external sdcard",
                                     "apply /sdcard/update.zip",
                                     "toggle signature verification",
                                     NULL,
@@ -442,6 +443,7 @@ static struct lun_node *lun_head = NULL;
 static struct lun_node *lun_tail = NULL;
 
 int control_usb_storage_set_lun(Volume* vol, bool enable, const char *lun_file) {
+    char c = 0;
     const char *vol_device = enable ? vol->device : "";
     int fd;
     struct lun_node *node;
@@ -589,12 +591,14 @@ void show_mount_usb_storage_menu()
 
 int confirm_selection(const char* title, const char* confirm)
 {
+    ensure_path_mounted("/emmc");
     struct stat info;
-    if (0 == stat("/sdcard/clockworkmod/.no_confirm", &info))
+    if (0 == stat("/emmc/clockworkmod/.no_confirm", &info))
         return 1;
 
-    char* confirm_headers[]  = {  title, "  THIS CAN NOT BE UNDONE.", "", NULL };
-    if (0 == stat("/sdcard/clockworkmod/.one_confirm", &info)) {
+    ensure_path_mounted("/emmc");
+    char* confirm_headers[]  = {  title, "  Confirm?.", "", NULL };
+    if (0 == stat("/emmc/clockworkmod/.one_confirm", &info)) {
         char* items[] = { "No",
                         confirm, //" Yes -- wipe partition",   // [1]
                         NULL };
@@ -781,7 +785,6 @@ int format_unknown_device(const char *device, const char* path, const char *fs_t
         sprintf(tmp, "rm -rf %s/.*", path);
         __system(tmp);
     }
-
     ensure_path_unmounted(path);
     return 0;
 }
@@ -1057,10 +1060,10 @@ void show_nandroid_menu()
                                 NULL
     };
 
-    char* list[] = { "backup",
-                            "restore",
-                            "delete",
-                            "advanced restore",
+    char* list[] = { "backup to external",
+                            "restore from external",
+                            "delete from external",
+                            "advanced restore from external",
                             "free unused backup data",
                             "choose backup format",
                             NULL,
@@ -1271,27 +1274,16 @@ void show_advanced_menu()
     };
 
     static char* list[] = { "reboot recovery",
+			    "reboot download",
                             "wipe dalvik cache",
                             "wipe battery stats",
                             "report error",
                             "key test",
                             "show log",
                             "fix permissions",
-                            "partition sdcard",
-                            "partition external sdcard",
-                            "partition internal sdcard",
+			    "sk8's fix permissions",
                             NULL
     };
-
-    if (!can_partition("/sdcard")) {
-        list[7] = NULL;
-    }
-    if (!can_partition("/external_sd")) {
-        list[8] = NULL;
-    }
-    if (!can_partition("/emmc")) {
-        list[9] = NULL;
-    }
 
     for (;;)
     {
@@ -1304,6 +1296,9 @@ void show_advanced_menu()
                 android_reboot(ANDROID_RB_RESTART2, 0, "recovery");
                 break;
             case 1:
+                android_reboot(ANDROID_RB_RESTART2, 0, "download");
+                break;
+            case 2:
                 if (0 != ensure_path_mounted("/data"))
                     break;
                 ensure_path_mounted("/sd-ext");
@@ -1316,14 +1311,14 @@ void show_advanced_menu()
                 }
                 ensure_path_unmounted("/data");
                 break;
-            case 2:
+            case 3:
                 if (confirm_selection( "Confirm wipe?", "Yes - Wipe Battery Stats"))
                     wipe_battery_stats();
                 break;
-            case 3:
+            case 4:
                 handle_failure(1);
                 break;
-            case 4:
+            case 5:
             {
                 ui_print("Outputting key codes.\n");
                 ui_print("Go back to end debugging.\n");
@@ -1338,27 +1333,26 @@ void show_advanced_menu()
                 while (action != GO_BACK);
                 break;
             }
-            case 5:
+            case 6:
                 ui_printlogtail(12);
                 break;
-            case 6:
+            case 7:
                 ensure_path_mounted("/system");
                 ensure_path_mounted("/data");
+                ensure_path_mounted("/emmc");
                 ui_print("Fixing permissions...\n");
                 __system("fix_permissions");
                 ui_print("Done!\n");
                 break;
-            case 7:
-                partition_sdcard("/sdcard");
-                break;
-            case 8:
-                partition_sdcard("/external_sd");
-                break;
-            case 9:
-                partition_sdcard("/emmc");
-                break;
-        }
-    }
+	    case 8:
+               	ensure_path_mounted("/system");
+                ensure_path_mounted("/data");
+                ui_print("Fixing permissions & removing stale directories (logging disabled)...\n");
+                __system("fix_permissions -l -r");
+                ui_print("Done!\n");
+		break;
+      }
+   }
 }
 
 void write_fstab_root(char *path, FILE *file)
@@ -1476,11 +1470,11 @@ void handle_failure(int ret)
 {
     if (ret == 0)
         return;
-    if (0 != ensure_path_mounted("/sdcard"))
+    if (0 != ensure_path_mounted("/emmc"))
         return;
-    mkdir("/sdcard/clockworkmod", S_IRWXU | S_IRWXG | S_IRWXO);
-    __system("cp /tmp/recovery.log /sdcard/clockworkmod/recovery.log");
-    ui_print("/tmp/recovery.log was copied to /sdcard/clockworkmod/recovery.log. Please open ROM Manager to report the issue.\n");
+    mkdir("/emmc/clockworkmod", S_IRWXU | S_IRWXG | S_IRWXO);
+    __system("cp /tmp/recovery.log /emmc/clockworkmod/recovery.log");
+    ui_print("/tmp/recovery.log was copied to /emmc/clockworkmod/recovery.log. Please open ROM Manager to report the issue.\n");
 }
 
 int is_path_mounted(const char* path) {
