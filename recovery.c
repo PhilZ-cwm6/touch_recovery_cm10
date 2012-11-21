@@ -1167,7 +1167,7 @@ main(int argc, char **argv) {
         if (wipe_cache && erase_volume("/cache")) status = INSTALL_ERROR;
         if (status != INSTALL_SUCCESS) ui_print("Cache wipe failed.\n");
     } else {
-        LOGI("Checking for extendedcommand...\n");
+        LOGI("Checking for extendedcommand & OpenRecoveryScript...\n");
         status = INSTALL_ERROR;  // No command specified
         // we are starting up in user initiated recovery here
         // let's set up some default options
@@ -1203,7 +1203,7 @@ main(int argc, char **argv) {
 		handle_failure(ret);
 	    }
         } else {
-            LOGI("/cache/recovery/openrecoveryscript not found.\n");
+            LOGI("Skipping execution of OpenRecoveryScript, file not found...\n");
         }
     }
 
