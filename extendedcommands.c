@@ -282,6 +282,9 @@ char** gather_files(const char* directory, const char* fileExtensionOrDirectory,
 }
 
 // pass in NULL for fileExtensionOrDirectory and you will get a directory chooser
+int no_files_found = 1; //choose_file_menu returns string NULL when no file is found or if we choose no file in selection
+                               //no_files_found = 1 when no valid file was found, no_files_found = 0 when we found a valid file
+                               //added for custom ors menu support + later kernel restore
 char* choose_file_menu(const char* directory, const char* fileExtensionOrDirectory, const char* headers[])
 {
     char path[PATH_MAX] = "";
@@ -314,10 +317,12 @@ char* choose_file_menu(const char* directory, const char* fileExtensionOrDirecto
     int total = numDirs + numFiles;
     if (total == 0)
     {
+	no_files_found = 1; //we found no valid file to select
         ui_print("No files found.\n");
     }
     else
     {
+        no_files_found = 0; //we found a valid file to select
         char** list = (char**) malloc((total + 1) * sizeof(char*));
         list[total] = NULL;
 

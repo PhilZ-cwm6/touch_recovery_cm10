@@ -44,6 +44,25 @@
 #include "kyle.h"
 #include "recovery.h"
 
+void ui_print_custom_logtail(const char* filename, int nb_lines) {
+    char * backup_log;
+    char tmp[PATH_MAX];
+    FILE * f;
+    int line=0;
+    sprintf(tmp, "tail -n %d %s > /tmp/custom_tail.log", nb_lines, filename);
+    __system(tmp);
+    f = fopen("/tmp/custom_tail.log", "rb");
+    if (f != NULL) {
+        while (line < nb_lines) {
+            backup_log = fgets(tmp, PATH_MAX, f);
+            if (backup_log == NULL) break;
+            ui_print("%s", tmp);
+            line++;
+        }
+        fclose(f);
+    }
+}
+
 void show_darkside_menu() {
     static char* headers[] = {  "Darkside Tools (BE CAREFUL!)",
                                 "",
@@ -76,53 +95,181 @@ void show_darkside_menu() {
     }
 }
 
+  //start show flash kernel menu (flash/restore from default location)
+void flash_kernel_default (const char* kernel_path) {
+    static char* headers[] = { "Flash kernel image",
+                                NULL
+    };
+    if (ensure_path_mounted(kernel_path) != 0) {
+        LOGE ("Can't mount %s\n", kernel_path);
+        return;
+    }
+    char tmp[PATH_MAX];
+    sprintf(tmp, "%s/clockworkmod/.kernel_bak/", kernel_path);
+    //without this check, we get 2 errors in log: "directory not found":
+    if (access(tmp, F_OK) != -1) {
+        //folder exists, but could be empty!
+        char* kernel_file = choose_file_menu(tmp, ".img", headers);
+        if (kernel_file == NULL) {
+            //either no valid files found or we selected no files by pressing back menu
+            if (no_files_found == 1) {
+                //0 valid files to select
+                ui_print("No *.img files in %s\n", tmp);
+            }
+            return;
+        }
+        static char* confirm_install = "Confirm flash kernel?";
+        static char confirm[PATH_MAX];
+        sprintf(confirm, "Yes - Flash %s", basename(kernel_file));
+        if (confirm_selection(confirm_install, confirm)) {
+            char tmp[PATH_MAX];
+            sprintf(tmp, "kernel-restore.sh %s %s", kernel_file, kernel_path);
+            __system(tmp);
+            //prints log
+            char logname[PATH_MAX];
+            sprintf(logname, "%s/clockworkmod/.kernel_bak/log.txt", kernel_path);
+            ui_print_custom_logtail(logname, 3);
+        }
+    } else {
+        ui_print("%s not found.\n", tmp);
+        return;
+    }
+}
+
+  //start show partition backup/restore menu
 void show_efs_menu() {
-    static char* headers[] = {  "EFS Tools",
+    static char* headers[] = { "EFS/Boot Backup & Restore",
                                 "",
                                 NULL
     };
 
-    char* list[] = { "backup /efs partition to internal",
-                     "restore /efs partition from internal",
-                     "backup /efs partition to external",
-                     "restore /efs partition from external",
+    static char* list[] = { "Backup /boot to sdcard",
+                     "Flash /boot from sdcard",
+                     "Backup /efs to sdcard",
+                     "Restore /efs from sdcard",
+                     NULL,
+                     NULL,
+                     NULL,
+                     NULL,
                      NULL
     };
 
-    int chosen_item = get_menu_selection(headers, list, 0, 0);
-    switch (chosen_item) {
-        case 0:
-                ensure_path_mounted("/sdcard");
+    char *other_sd = NULL;
+    if (volume_for_path("/emmc") != NULL) {
+        other_sd = "/emmc";
+        list[4] = "Backup /boot to Internal sdcard";
+        list[5] = "Flash /boot from Internal sdcard";
+        list[6] = "Backup /efs to Internal sdcard";
+        list[7] = "Restore /efs from Internal sdcard";
+    } else if (volume_for_path("/external_sd") != NULL) {
+        other_sd = "/external_sd";
+        list[4] = "Backup /boot to External sdcard";
+        list[5] = "Flash /boot from External sdcard";
+        list[6] = "Backup /efs to External sdcard";
+        list[7] = "Restore /efs from External sdcard";
+    }
+
+    for (;;) {
+        //header function so that "Toggle menu" doesn't reset to main menu on action selected
+        int chosen_item = get_filtered_menu_selection(headers, list, 0, 0, sizeof(list) / sizeof(char*));
+        if (chosen_item == GO_BACK)
+            break;
+        switch (chosen_item)
+        {
+            case 0:
+                if (ensure_path_mounted("/sdcard") != 0) {
+                    ui_print("Can't mount /sdcard\n");
+                    break;
+                }
+                __system("kernel-backup.sh /sdcard");
+                ui_print_custom_logtail("/sdcard/clockworkmod/.kernel_bak/log.txt", 3);
+                break;
+            case 1:
+                flash_kernel_default("/sdcard");
+                break;
+            case 2:
+                if (ensure_path_mounted("/sdcard") != 0) {
+                    ui_print("Can't mount /sdcard\n");
+                    break;
+                }
                 ensure_path_unmounted("/efs");
                 __system("backup-efs.sh /sdcard");
-                ui_print("/sdcard/clockworkmod/.efsbackup/efs.img created\n");
+                ui_print_custom_logtail("/sdcard/clockworkmod/.efsbackup/log.txt", 3);
                 break;
-        case 1:
-                ensure_path_mounted("/sdcard");
+            case 3:
+                if (ensure_path_mounted("/sdcard") != 0) {
+                    ui_print("Can't mount /sdcard\n");
+                    break;
+                }
                 ensure_path_unmounted("/efs");
-                if( access("/sdcard/clockworkmod/.efsbackup/efs.img", F_OK ) != -1 ) {
-                   __system("restore-efs.sh /sdcard");
-                   ui_print("/sdcard/clockworkmod/.efsbackup/efs.img restored to /efs");
+                if (access("/sdcard/clockworkmod/.efsbackup/efs.img", F_OK ) != -1) {
+                    if (confirm_selection("Confirm?", "Yes - Restore EFS")) {
+                        __system("restore-efs.sh /sdcard");
+                        ui_print_custom_logtail("/sdcard/clockworkmod/.efsbackup/log.txt", 3);
+                    }
                 } else {
-                   ui_print("No efs.img backup found.\n");
+                    ui_print("No efs.img backup found in sdcard.\n");
                 }
                 break;
-        case 2:
-                ensure_path_mounted("/external_sd");
-                ensure_path_unmounted("/efs");
-                __system("backup-efs.sh /external_sd");
-                ui_print("/external_sd/clockworkmod/.efsbackup/efs.img created\n");
-                break;
-        case 3:
-                ensure_path_mounted("/external_sd");
-                ensure_path_unmounted("/efs");
-                if( access("/external_sd/clockworkmod/.efsbackup/efs.img", F_OK ) != -1 ) {
-                   __system("restore-efs.sh /external_sd");
-                   ui_print("/external_sd/clockworkmod/.efsbackup/efs.img restored to /efs");
-                } else {
-                   ui_print("No efs.img backup found.\n");
+            case 4:
+                {
+                    if (ensure_path_mounted(other_sd) != 0) {
+                        ui_print("Can't mount %s\n", other_sd);
+                        break;
+                    }
+                    char tmp[PATH_MAX];
+                    sprintf(tmp, "kernel-backup.sh %s", other_sd);
+                    __system(tmp);
+                    //prints log
+                    char logname[PATH_MAX];
+                    sprintf(logname, "%s/clockworkmod/.kernel_bak/log.txt", other_sd);
+                    ui_print_custom_logtail(logname, 3);
                 }
                 break;
+            case 5:
+                flash_kernel_default(other_sd);
+                break;
+            case 6:
+                {
+                    if (ensure_path_mounted(other_sd) != 0) {
+                        ui_print("Can't mount %s\n", other_sd);
+                        break;
+                    }
+                    ensure_path_unmounted("/efs");
+                    char tmp[PATH_MAX];
+                    sprintf(tmp, "efs-backup.sh %s", other_sd);
+                    __system(tmp);
+                    //prints log
+                    char logname[PATH_MAX];
+                    sprintf(logname, "%s/clockworkmod/.efsbackup/log.txt", other_sd);
+                    ui_print_custom_logtail(logname, 3);
+                }
+                break;
+            case 7:
+                {
+                    if (ensure_path_mounted(other_sd) != 0) {
+                        ui_print("Can't mount %s\n", other_sd);
+                        break;
+                    }
+                    ensure_path_unmounted("/efs");
+                    char filename[PATH_MAX];
+                    sprintf(filename, "%s/clockworkmod/.efsbackup/efs.img", other_sd);
+                    if (access(filename, F_OK ) != -1) {
+                        if (confirm_selection("Confirm?", "Yes - Restore EFS")) {
+                            char tmp[PATH_MAX];
+                            sprintf(tmp, "efs-restore.sh %s", other_sd);
+                            __system(tmp);
+                            //prints log
+                            char logname[PATH_MAX];
+                            sprintf(logname, "%s/clockworkmod/.efsbackup/log.txt", other_sd);
+                            ui_print_custom_logtail(logname, 3);
+                        }
+                    } else {
+                        ui_print("No efs.img backup found in %s\n", other_sd);
+                    }
+                }
+                break;
+        }
     }
 }
 
@@ -444,12 +591,15 @@ void show_extras_menu()
 			    "set android_secure internal/external",
 			    "aroma file manager",
 			    "darkside tools",
-			    "/efs tools",
 			    "create custom zip",
 			    "run custom openrecoveryscript",
 			    "recovery info",
-                            NULL
-    };
+			    NULL,
+                            NULL };
+
+    if (volume_for_path("/efs") != NULL) {
+        list[9] = "EFS/Boot Backup & Restore";
+    }
 
     for (;;)
     {
@@ -503,9 +653,6 @@ void show_extras_menu()
 		show_darkside_menu();
 		break;
 	    case 6:
-		show_efs_menu();
-		break;
-	    case 7:
 		ensure_path_mounted("/system");
 		ensure_path_mounted("/sdcard");
                 if (confirm_selection("Create a zip from system and boot?", "Yes - Create custom zip")) {
@@ -529,13 +676,17 @@ void show_extras_menu()
 	}
 		ensure_path_unmounted("/system");
 		break;
-	    case 8:
+	    case 7:
 		show_custom_ors_menu("/sdcard");
 		break;
-	    case 9:
+	    case 8:
 		ui_print("ClockworkMod Recovery 6.0.1.9 Touch v14.3\n");
 		ui_print("Created By: sk8erwitskil (Kyle Laplante)\n");
 		ui_print("Build Date: 11/20/2012 5:00 pm\n");
+	    case 9:
+		if (volume_for_path("/efs") != NULL)
+                    show_efs_menu();
+                break;
 	}
     }
 }

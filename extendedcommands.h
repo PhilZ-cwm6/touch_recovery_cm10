@@ -1,5 +1,6 @@
 extern int signature_check_enabled;
 extern int script_assert_enabled;
+int no_files_found;
 
 void
 toggle_signature_check();
