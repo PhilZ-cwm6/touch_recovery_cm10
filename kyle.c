@@ -578,6 +578,79 @@ void show_custom_ors_menu(const char* ors_path)
     }
 }
 
+void choose_aromafm_menu(const char* aromafm_path)
+{
+    if (ensure_path_mounted(aromafm_path) != 0) {
+        LOGE("Can't mount %s\n", aromafm_path);
+        return;
+    }
+
+    static char* headers[] = { "Browse for aromafm.zip",
+                                NULL
+    };
+
+    char* aroma_file = choose_file_menu(aromafm_path, "aromafm.zip", headers);
+    if (aroma_file == NULL)
+        return;
+    static char* confirm_install = "Confirm Run Aroma?";
+    static char confirm[PATH_MAX];
+    sprintf(confirm, "Yes - Run %s", basename(aroma_file));
+    if (confirm_selection(confirm_install, confirm)) {
+        install_zip(aroma_file);
+    }
+}
+  //Show custom aroma menu: manually browse sdcards for Aroma file manager
+void custom_aroma_menu() {
+    static char* headers[] = { "Browse for aromafm.zip",
+                                "",
+                                NULL
+    };
+
+    static char* list[] = { "Search sdcard",
+                            NULL,
+                            NULL
+    };
+
+    char *other_sd = NULL;
+    if (volume_for_path("/emmc") != NULL) {
+        other_sd = "/emmc/";
+        list[1] = "Search Internal sdcard";
+    } else if (volume_for_path("/external_sd") != NULL) {
+        other_sd = "/external_sd/";
+        list[1] = "Search External sdcard";
+    }
+
+    for (;;) {
+        //header function so that "Toggle menu" doesn't reset to main menu on action selected
+        int chosen_item = get_filtered_menu_selection(headers, list, 0, 0, sizeof(list) / sizeof(char*));
+        if (chosen_item == GO_BACK)
+            break;
+        switch (chosen_item)
+        {
+            case 0:
+                choose_aromafm_menu("/sdcard/");
+                break;
+            case 1:
+                choose_aromafm_menu(other_sd);
+                break;
+        }
+    }
+}
+  //launch aromafm.zip from default locations
+static int default_aromafm (const char* aromafm_path) {
+        if (ensure_path_mounted(aromafm_path) != 0) {
+            //no sdcard at moint point
+            return 0;
+        }
+        char aroma_file[PATH_MAX];
+        sprintf(aroma_file, "%s/clockworkmod/.aromafm/aromafm.zip", aromafm_path);
+        if (access(aroma_file, F_OK) != -1) {
+            install_zip(aroma_file);
+            return 1;
+        }
+        return 0;
+}
+
 void show_extras_menu()
 {
     static char* headers[] = {  "Extras Menu",
@@ -642,13 +715,26 @@ void show_extras_menu()
                 }
                 break;
 	    case 4:
-		ensure_path_mounted("/sdcard");
-		if( access( "/sdcard/clockworkmod/.aromafm/aromafm.zip", F_OK ) != -1) {
-                install_zip("/sdcard/clockworkmod/.aromafm/aromafm.zip");
-		} else {
-                ui_print("No aroma files found in /sdcard/clockworkmod/.aromafm");
-		}
-		break;
+                //look for clockworkmod/.aromafm/aromafm.zip in /external_sd, then /sdcard and finally /emmc
+                if (volume_for_path("/external_sd") != NULL) {
+                    if (default_aromafm("/external_sd")) {
+                        break;
+                    }
+                }
+                if (volume_for_path("/sdcard") != NULL) {
+                    if (default_aromafm("/sdcard")) {
+                        break;
+                    }
+                }
+                if (volume_for_path("/emmc") != NULL) {
+                    if (default_aromafm("/emmc")) {
+                        break;
+                    }
+                }
+                ui_print("No clockworkmod/.aromafm/aromafm.zip on sdcards\n");
+                ui_print("Browsing custom locations\n");
+                custom_aroma_menu();
+                break;
 	    case 5:
 		show_darkside_menu();
 		break;
@@ -680,9 +766,11 @@ void show_extras_menu()
 		show_custom_ors_menu("/sdcard");
 		break;
 	    case 8:
-		ui_print("ClockworkMod Recovery 6.0.1.9 Touch v14.3\n");
-		ui_print("Created By: sk8erwitskil (Kyle Laplante)\n");
-		ui_print("Build Date: 11/20/2012 5:00 pm\n");
+                ui_print(EXPAND(RECOVERY_VERSION)"\n");
+                ui_print("Build version: "EXPAND(SK8S_BUILD)" - "EXPAND(TARGET_DEVICE)"\n");
+                ui_print("CWM Base version: "EXPAND(CWM_BASE_VERSION)"\n");
+                //ui_print(EXPAND(BUILD_DATE)"\n");
+                ui_print("Build Date: %s at %s\n", __DATE__, __TIME__);
 	    case 9:
 		if (volume_for_path("/efs") != NULL)
                     show_efs_menu();

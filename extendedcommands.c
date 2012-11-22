@@ -905,14 +905,28 @@ void show_partition_menu()
           options[mountable_volumes + formatable_volumes + 1] = NULL;
         }
         else {
-          options[mountable_volumes + formatable_volumes] = NULL;
+          options[mountable_volumes + formatable_volumes] = "format /data and /data/media (/sdcard)";
+          options[mountable_volumes + formatable_volumes + 1] = NULL;
         }
 
         int chosen_item = get_menu_selection(headers, &options, 0, 0);
         if (chosen_item == GO_BACK)
             break;
         if (chosen_item == (mountable_volumes+formatable_volumes)) {
-            show_mount_usb_storage_menu();
+	    if (!is_data_media()) {
+                show_mount_usb_storage_menu();
+            }
+            else {
+                if (!confirm_selection("format /data and /data/media (/sdcard)", confirm))
+                    continue;
+                handle_data_media_format(1);
+                ui_print("Formatting /data...\n");
+                if (0 != format_volume("/data"))
+                    ui_print("Error formatting /data!\n");
+                else
+                    ui_print("Done.\n");
+                handle_data_media_format(0);
+            }
         }
         else if (chosen_item < mountable_volumes) {
             MountMenuEntry* e = &mount_menu[chosen_item];
