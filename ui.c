@@ -489,7 +489,9 @@ static int input_callback(int fd, short revents, void *data)
         rel_sum = 0;
     }
 
+#ifdef SK8S_DEBUG_UI
     printf("ev.type: %x, ev.code: %x, ev.value: %i\n", ev.type, ev.code, ev.value);
+#endif
 //    if(ev.type == EV_ABS && ev.code == ABS_MT_TRACKING_ID) {  //debugging
     if (ev.type == 3 && ev.code == 48 && ev.value != 0) {
         if (in_touch == 0) {
@@ -541,13 +543,17 @@ static int input_callback(int fd, short revents, void *data)
 
 	if (touch_y < (gr_fb_height() - gr_get_height(surface))) {
             if (diff_x > (gr_fb_width() / 4)) {
+#ifdef SK8S_DEBUG_UI
 		printf("Gesture forward generated\n");
+#endif
                 slide_right = 1;
                 //ev.code = KEY_ENTER;
                 //ev.type = EV_KEY;
                 reset_gestures();
     } else if(diff_x < ((gr_fb_width() / 4) * -1)) {
+#ifdef SK8S_DEBUG_UI
 		printf("Gesture back generated\n");
+#endif
                 slide_left = 1;
                 //ev.code = KEY_BACK;
                 //ev.type = EV_KEY;
@@ -557,6 +563,7 @@ static int input_callback(int fd, short revents, void *data)
             input_buttons();
             //reset_gestures();
         }
+//    } else if(ev.type == EV_ABS && ev.code == ABS_MT_POSITION_Y) {
     } else if (ev.type == 3 && ev.code == 54) {
         old_y = touch_y;
         touch_y = ev.value;
@@ -565,12 +572,16 @@ static int input_callback(int fd, short revents, void *data)
 
     if (touch_y < (gr_fb_height() - gr_get_height(surface))) {
             if (diff_y > 25) {
+#ifdef SK8S_DEBUG_UI
                 printf("Gesture Down generated\n");
+#endif
                 ev.code = KEY_DOWN;
                 ev.type = EV_KEY;
                 reset_gestures();
 	} else if (diff_y < -25) {
+#ifdef SK8S_DEBUG_UI
                 printf("Gesture Up generated\n");
+#endif
                 ev.code = KEY_UP;
                 ev.type = EV_KEY;
                 reset_gestures();
