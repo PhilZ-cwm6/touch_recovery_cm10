@@ -722,6 +722,7 @@ int check_for_script_file(void) {
 		ret_val = 0;
 		LOGI("Script file found: '%s'\n", SCRIPT_FILE_CACHE);
 		fclose(fp);
+                __system("ors-mount.sh");
 		// Copy script file to /tmp
 		strcpy(exec, "cp ");
 		strcat(exec, SCRIPT_FILE_CACHE);
@@ -1193,7 +1194,6 @@ main(int argc, char **argv) {
         if (0 == check_for_script_file()) {
 	    LOGI("Running openrecoveryscript....\n");
 	    ensure_path_mounted("/sdcard");
-            __system("ors-mount.sh");
 	    int ret;
             if (0 == (ret = run_script_file())) {
 	        status = INSTALL_SUCCESS;
